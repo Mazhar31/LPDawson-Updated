@@ -12,7 +12,7 @@ import uvicorn
 
 load_dotenv()
 SHEET_ID = os.getenv("SHEET_ID")
-GOOGLE_JSON_KEY_PATH = os.getenv("GOOGLE_KEY_PATH")
+GOOGLE_JSON_KEY_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DRIVE_FOLDER_ID_WEST = os.getenv("DRIVE_FOLDER_ID")
 WORKSHEET_NAME = os.getenv("SHEET_NAME")
@@ -172,4 +172,5 @@ async def lpdawson(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
