@@ -1,0 +1,11 @@
+uvicorn==0.34.0
+openai==1.68.2
+fastapi==0.115.12
+python-dotenv==1.1.0
+gspread==6.2.0
+google-auth-oauthlib==1.2.1
+google-auth==2.38.0
+google-auth-httplib2==0.2.0
+google-api-python-client==2.166.0
+requests==2.32.3
+python-multipart==0.0.20
