@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OCR Image Processor</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-family: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        position: relative;
+      }
+
+      body::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.15"/><circle cx="20" cy="80" r="0.5" fill="white" opacity="0.15"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        pointer-events: none;
+      }
+
+      .ocr-container {
+        width: 100%;
+        max-width: 420px;
+        padding: 40px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 24px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1),
+          0 0 0 1px rgba(255, 255, 255, 0.2);
+        position: relative;
+        z-index: 1;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .ocr-container:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15),
+          0 0 0 1px rgba(255, 255, 255, 0.3);
+      }
+
+      .ocr-title {
+        text-align: center;
+        color: #2d3748;
+        margin-bottom: 30px;
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+
+      .ocr-subtitle {
+        text-align: center;
+        color: #718096;
+        margin-bottom: 30px;
+        font-size: 16px;
+        font-weight: 400;
+      }
+
+      .file-input-container {
+        margin-bottom: 20px;
+        position: relative;
+      }
+
+      .hidden-file-input {
+        display: none;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 16px 20px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-bottom: 16px;
+        font-size: 16px;
+        font-weight: 600;
+        position: relative;
+        overflow: hidden;
+        text-transform: none;
+        letter-spacing: 0.025em;
+      }
+
+      .btn::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.3),
+          transparent
+        );
+        transition: left 0.5s ease;
+      }
+
+      .btn:hover::before {
+        left: 100%;
+      }
+
+      .btn-select {
+        background: linear-gradient(135deg, #4299e1, #3182ce);
+        color: white;
+        border: 2px dashed transparent;
+        background-clip: padding-box;
+      }
+
+      .btn-select:hover {
+        background: linear-gradient(135deg, #3182ce, #2c5aa0);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(66, 153, 225, 0.3);
+      }
+
+      .btn-upload {
+        background: linear-gradient(135deg, #9f7aea, #805ad5);
+        color: white;
+      }
+
+      .btn-upload:hover:not(:disabled) {
+        background: linear-gradient(135deg, #805ad5, #6b46c1);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(159, 122, 234, 0.3);
+      }
+
+      .btn-upload:disabled {
+        background: linear-gradient(135deg, #cbd5e0, #a0aec0);
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .btn-reset {
+        background: linear-gradient(135deg, #718096, #4a5568);
+        color: white;
+        margin-top: 10px;
+      }
+
+      .btn-reset:hover {
+        background: linear-gradient(135deg, #4a5568, #2d3748);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(113, 128, 150, 0.3);
+      }
+
+      .selected-file {
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 15px;
+        color: #4a5568;
+        background: #f7fafc;
+        padding: 16px;
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        position: relative;
+        animation: slideIn 0.3s ease-out;
+      }
+
+      .selected-file::before {
+        content: "📁";
+        margin-right: 8px;
+        font-size: 18px;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .message-base {
+        padding: 16px 20px;
+        border-radius: 12px;
+        margin-top: 20px;
+        text-align: center;
+        font-size: 15px;
+        font-weight: 500;
+        position: relative;
+        animation: fadeIn 0.3s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      .error-message {
+        background: linear-gradient(135deg, #fed7d7, #feb2b2);
+        color: #c53030;
+        border: 1px solid #fc8181;
+      }
+
+      .error-message::before {
+        content: "⚠️";
+        margin-right: 8px;
+        font-size: 16px;
+      }
+
+      .success-message {
+        background: linear-gradient(135deg, #c6f6d5, #9ae6b4);
+        color: #22543d;
+        border: 1px solid #68d391;
+      }
+
+      .success-message::before {
+        content: "✅";
+        margin-right: 8px;
+        font-size: 16px;
+      }
+
+      .loading-spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s ease-in-out infinite;
+        display: inline-block;
+        margin-right: 10px;
+        vertical-align: middle;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .drag-zone {
+        border: 2px dashed #cbd5e0;
+        border-radius: 12px;
+        padding: 40px 20px;
+        text-align: center;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+        background: rgba(247, 250, 252, 0.5);
+      }
+
+      .drag-zone.drag-over {
+        border-color: #4299e1;
+        background: rgba(66, 153, 225, 0.1);
+        transform: scale(1.02);
+      }
+
+      .drag-zone-text {
+        color: #718096;
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+
+      .drag-zone-subtext {
+        color: #a0aec0;
+        font-size: 14px;
+      }
+
+      @media (max-width: 480px) {
+        body {
+          padding: 10px;
+        }
+
+        .ocr-container {
+          padding: 30px 25px;
+        }
+
+        .ocr-title {
+          font-size: 24px;
+        }
+
+        .btn {
+          padding: 14px 18px;
+          font-size: 15px;
+        }
+      }
+
+      /* Accessibility improvements */
+      .btn:focus {
+        outline: 3px solid rgba(66, 153, 225, 0.5);
+        outline-offset: 2px;
+      }
+
+      .btn:focus:not(:focus-visible) {
+        outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ocr-container">
+      <h2 class="ocr-title">LP Dawson Weigh Scale</h2>
+      <p class="ocr-subtitle">Process weigh scale load slips with AI precision</p>
+
+      <div class="drag-zone" id="dragZone">
+        <div class="drag-zone-text">📋 Drop your weigh scale image here</div>
+        <div class="drag-zone-subtext">or click below to select</div>
+      </div>
+
+      <div class="file-input-container">
+        <input
+          type="file"
+          id="fileInput"
+          accept="image/*"
+          class="hidden-file-input"
+        />
+        <button class="btn btn-select" id="selectBtn">
+          📂 Select Weigh Scale Image
+        </button>
+      </div>
+
+      <div
+        class="selected-file"
+        id="fileNameDisplay"
+        style="display: none"
+      ></div>
+
+      <button class="btn btn-upload" id="uploadBtn" disabled>
+        🚀 Process Weigh Scale Data
+      </button>
+
+      <div
+        class="message-base error-message"
+        id="errorBox"
+        style="display: none"
+      ></div>
+      <div
+        class="message-base success-message"
+        id="successBox"
+        style="display: none"
+      ></div>
+
+      <button class="btn btn-reset" id="resetBtn" style="display: none">
+        🔄 Reset
+      </button>
+    </div>
+
+    <script>
+      const fileInput = document.getElementById("fileInput");
+      const selectBtn = document.getElementById("selectBtn");
+      const uploadBtn = document.getElementById("uploadBtn");
+      const fileNameDisplay = document.getElementById("fileNameDisplay");
+      const errorBox = document.getElementById("errorBox");
+      const successBox = document.getElementById("successBox");
+      const resetBtn = document.getElementById("resetBtn");
+      const dragZone = document.getElementById("dragZone");
+
+      let selectedFile = null;
+
+      // Original functionality
+      selectBtn.addEventListener("click", () => {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files.length > 0) {
+          selectedFile = fileInput.files[0];
+          updateFileDisplay();
+        }
+      });
+
+      uploadBtn.addEventListener("click", async () => {
+        if (!selectedFile) return;
+
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML =
+          '<span class="loading-spinner"></span>Processing...';
+        hideMessages();
+
+        try {
+          const response = await fetch(
+            "http://localhost:8000/lpdawson",
+            {
+              method: "POST",
+              body: formData,
+            }
+          );
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.detail || "Upload failed");
+          }
+
+          successBox.textContent = data.message || "Upload successful!";
+          successBox.style.display = "block";
+
+          // Auto reset after 3 seconds
+          setTimeout(() => {
+            resetForm();
+          }, 2000);
+        } catch (error) {
+          errorBox.textContent = error.message || "Something went wrong";
+          errorBox.style.display = "block";
+        } finally {
+          uploadBtn.disabled = false;
+          uploadBtn.innerHTML = "🚀 Process Weigh Scale Data";
+          resetBtn.style.display = "inline-block";
+        }
+      });
+
+      resetBtn.addEventListener("click", () => {
+        resetForm();
+      });
+
+      function resetForm() {
+        selectedFile = null;
+        fileInput.value = "";
+        uploadBtn.disabled = true;
+        fileNameDisplay.textContent = "";
+        fileNameDisplay.style.display = "none";
+        hideMessages();
+        resetBtn.style.display = "none";
+        dragZone.style.display = "block";
+      }
+
+      function hideMessages() {
+        errorBox.style.display = "none";
+        successBox.style.display = "none";
+      }
+
+      function updateFileDisplay() {
+        fileNameDisplay.style.display = "block";
+        fileNameDisplay.textContent = `Selected: ${selectedFile.name}`;
+        uploadBtn.disabled = false;
+        hideMessages();
+        resetBtn.style.display = "inline-block";
+        dragZone.style.display = "none";
+      }
+
+      // Enhanced drag and drop functionality
+      dragZone.addEventListener("click", () => {
+        fileInput.click();
+      });
+
+      dragZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dragZone.classList.add("drag-over");
+      });
+
+      dragZone.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        dragZone.classList.remove("drag-over");
+      });
+
+      dragZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dragZone.classList.remove("drag-over");
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type.startsWith("image/")) {
+          selectedFile = files[0];
+          fileInput.files = files;
+          updateFileDisplay();
+        }
+      });
+
+      // Prevent default drag behaviors on body
+      document.body.addEventListener("dragover", (e) => e.preventDefault());
+      document.body.addEventListener("drop", (e) => e.preventDefault());
+    </script>
+  </body>
+</html>

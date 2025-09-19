@@ -37,12 +37,17 @@ You are a precise data extractor.
 Extract and structure the data from the provided weigh scale load slip image using this exact format:
 
 [
+  ["Weigh Scale Load Slip #", "194647 / 1"],
+  ["Date In", "08/Sep/25"],
+  ["Gross", "64,490 kg"],
+  ["Tare", "21,700 kg"],
+  ["Net", "42,790 kg"],
+  ["Truck", "1367 4EG"],
   ["Company", "Louisiana Pacific #473"],
   ["Location", "Dawson Creek #473"],
   ["Scale Site", "473"],
   ["Stratum", "31"],
   ["PopStrYear", "48093126"],
-  ["Truck", "1367 4EG"],
   ["Trailer", "8C"],
   ["Contractor", "200495 4EVERGREEN RESOURCES LTD"],
   ["T.Mark", "HK6005"],
@@ -51,21 +56,16 @@ Extract and structure the data from the provided weigh scale load slip image usi
   ["Frm/Cond/Pr", "PULP-LOGS"],
   ["In LDS#", "257042"],
   ["Species", ""],
-  ["Date In", "08/Sep/25"],
   ["In Time", "17:05"],
   ["Out Time", "17:31"],
   ["Scaler1/2/S", "461H/461H/"],
   ["Yard Time", "26min"],
   ["Yard", ""],
   ["Source ID", "HK6005-LM066"],
-  ["Gross", "64,490 kg"],
-  ["Tare", "21,700 kg"],
-  ["Net", "42,790 kg"],
   ["Driver", ""],
   ["Form A", "AP LONG 5410-473 - 100%"],
   ["Form B", "AP LONG 5410-473 - 0%"],
   ["Form C", "AP LONG 5410-473 - 0%"],
-  ["Weigh Scale Load Slip #", "194647 / 1"],
   ["Load Arrival#", "194"]
 ]
 
@@ -172,4 +172,4 @@ async def lpdawson(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
